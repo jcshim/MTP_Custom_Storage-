@@ -249,3 +249,89 @@ STM32H7B0VBT6의 사양에 가장 적합한 MTP 구현 방식은 다음과 같�
 
 필요하시면 `ux_device_class_pima_storage` 내에서 **FATFS와 연동하는 커스터마이징 방법**도 함께 설명드릴 수 있습니다.
 
+네, **`/Projects/STM32H7B3I_EVAL/Applications/USBX/Ux_Device_PIMA_MTP` 예제는 STM32H7B0VBT6에서도 사용 가능합니다.**
+단, **직접 포팅 작업이 필요**합니다. 왜냐하면:
+
+---
+
+## ✅ 이유: H7B3I\_EVAL 보드 vs H7B0VBT6 보드의 차이
+
+| 항목        | H7B3I\_EVAL (예제 보드)      | H7B0VBT6 (사용자 보드)             |
+| --------- | ------------------------ | ----------------------------- |
+| MCU       | STM32H7B3IIT6            | STM32H7B0VBT6                 |
+| Flash/RAM | 2MB Flash / 1.4MB RAM    | 128KB Flash / 1.4MB RAM       |
+| USB Type  | Full-speed or High-speed | Full-speed (내장 FS or 외부 ULPI) |
+| BSP 지원    | 보드 전용 드라이버 있음            | 별도 작성 필요                      |
+| microSD   | Onboard SDMMC 있음         | 사용자가 SD 연결 필요                 |
+| 외부 장치     | LCD, QSPI, SDRAM 등 다양    | 보통 없음 (간단 보드)                 |
+
+즉, **코어는 동일한 STM32H7이지만**,
+**보드 주변장치, 핀맵, 드라이버 구조가 달라 직접 수정이 필요**합니다.
+
+---
+
+## ✅ 포팅 시 해야 할 일
+
+### ① CubeMX로 H7B0VBT6용 새 프로젝트 생성
+
+* USB\_OTG\_FS 또는 USB\_OTG\_HS(ULPI 포함) 설정
+* Middleware > USBX + ThreadX + PIMA MTP 활성화
+* FATFS 활성화 후 microSD(SDMMC or SPI) 설정
+
+### ② 기존 예제에서 다음 파일들 복사
+
+* `/USBX/App/ux_device_mtp.c` (핵심 클래스 등록 코드)
+* `/USBX/App/ux_device_class_pima_storage.c` (파일 처리 구현)
+* `/USBX/App/ux_device_pima_mtp_media.c` (스토리지 정의)
+* `/USBX/ux_device_class_pima*.*` (클래스 구현)
+
+> 단, BSP 함수(`BSP_SD_...`)는 직접 수정 필요 → HAL 기반 코드로 변경
+
+### ③ HAL 기반 SD 카드 코드로 대체
+
+예제는 다음과 같은 코드를 쓸 수 있으나:
+
+```c
+BSP_SD_ReadBlocks(...);
+```
+
+`HAL_SD_ReadBlocks()`로 대체하여 사용하세요.
+
+---
+
+## ✅ 필터링 추가 (H7B0에서 구현 시 추천)
+
+`.hwp`, `.doc`, `.txt`만 저장하고 싶다면,
+`ux_device_class_pima_storage_write()` 또는 유사 함수에서 다음 코드 추가:
+
+```c
+if (!strstr(filename, ".txt") &&
+    !strstr(filename, ".doc") &&
+    !strstr(filename, ".hwp")) {
+    return UX_ERROR; // 파일 저장 거부
+}
+```
+
+---
+
+## ✅ 예상 난이도와 팁
+
+| 항목            | 난이도    | 팁                                |
+| ------------- | ------ | -------------------------------- |
+| USBX + MTP 설정 | 중간     | CubeMX로 MTP 활성화, ThreadX/USBX 필수 |
+| SD카드 연동       | 중간     | HAL\_SD + FATFS로 안정성 확보          |
+| BSP 제거        | 낮음\~중간 | BSP 대신 HAL 함수로 대체                |
+| 디버깅           | 높음     | UART 디버깅 로그 적극 활용 필요             |
+
+---
+
+## ✅ 결론
+
+> **예, `Ux_Device_PIMA_MTP` 예제는 STM32H7B0VBT6에서도 충분히 활용 가능합니다.**
+> 단, 주변장치 설정과 BSP 제거 등 **보드에 맞춘 수작업 포팅이 필요**합니다.
+
+---
+
+원하시면 실제 포팅 작업을 위한 CubeMX 설정부터 SD카드/USBX MTP 연동 코드까지 단계별로 가이드를 제공드릴 수 있습니다.
+“예제 기반 포팅 시작 가이드”가 필요하시면 알려주세요.
+
