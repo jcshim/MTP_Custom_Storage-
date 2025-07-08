@@ -140,15 +140,6 @@ bool check_allowed_file(const char* filename) {
 
 ---
 
-## 🧪 6단계: 빌드 후 테스트
-
-1. 보드를 PC에 USB로 연결
-2. Windows에서 장치 관리자 → "이동식 장치(MTP)"로 인식되면 성공!
-3. `.hwp`, `.doc`, `.txt` 파일 전송 → 저장됨
-4. `.exe`, `.jpg`, `.pdf` 등은 전송 거부됨
-
----
-
 ## 🧠 용어 정리
 
 | 용어           | 설명                                        |
